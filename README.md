@@ -27,6 +27,77 @@ Our data sources are:
 * **[IMDB Cast (Links)](https://datasets.imdbws.com/title.principals.tsv.gz)**
 * **[IMDB Cast (Names)](https://datasets.imdbws.com/name.basics.tsv.gz)**
 
-## Project Documentation
+## Complete Technical Specification
 
 Please refer to the [Movie Review Sentiment Analysis Notebook](Movie%20Review%20Sentiment%20Analysis.ipynb#) for end-to-end understanding of the project, as well as setup instructions.
+
+## Choice of Technology
+
+The present solution allows **Data Analysts** to perform roll-ups and drill-downs into film review sentiment facts linked to both films and actors.
+
+Since the raw data provided into S3 and **yearly reported to the Data Analysis Team** who can then perform further analysis on the database, a single write step is required, whereas many reads and aggregations will be performer.
+
+Given those requirements, the choice of technology was the following:
+
+1. **AWS S3** to store the raw files from **IMDb** and **TMDb** films, reviews and casting.
+
+2. **AWS Redshift** to produce a **Data Warehouse** with the required dimension and fact tables.
+
+3. **Tensorflow** to allow us training a model and running the classification
+
+4. **Apache Airflow** to automate our Data Piepeline, so that it arrives to the right team, on time.
+
+## Scalability
+
+This solution is scalable, under each of the following scenarios, as follows:
+
+### Scenario 1: The data was increased by 100x
+
+The technology employed is extremely elastic. Under 100x the size of the same data:
+
+1. **AWS S3** would hold the files absolutely in the same maner, without any penalty:
+
+```
+Q: How much data can I store in Amazon S3?
+
+The total volume of data and number of objects you can store are unlimited. Individual Amazon S3 objects can range in size from a minimum of 0 bytes to a maximum of 5 terabytes. The largest object that can be uploaded in a single PUT is 5 gigabytes. For objects larger than 100 megabytes, customers should consider using the Multipart Upload capability.
+
+Source: https://aws.amazon.com/s3/faqs/
+```
+
+2. **AWS Redshift** `COPY` and `INSERT` operations would perform perfectly well, since there is no upper limit for them, and the `INSERT` statements have been done using the `INSERT INTO SELECT FROM` form, that is optimised in redshift:
+
+```
+We strongly encourage you to use the COPY command to load large amounts of data. Using individual INSERT statements to populate a table might be prohibitively slow. Alternatively, if your data already exists in other Amazon Redshift database tables, use INSERT INTO SELECT or CREATE TABLE AS to improve performance. For more information about using the COPY command to load tables, see Loading data.
+
+Source: https://docs.aws.amazon.com/redshift/latest/dg/r_INSERT_30.html
+```
+
+3. **Table Scanning Operations** like *review classification* are done by running a `SELECT` query in AWS Redshift and then streaming through the results to get classified by the model.
+
+    3.1. **Computer Resources** will not be particularly hit, given the fac that the classification is done by streaming through a small part of the dataset per time.
+
+    3.2. **Time length to Classify Reviews** will increase linearly as the data increases. Some level of parallelisation of this procedure (based on a foor loop) will be required.
+
+4. The **Data Warehouse** has been designed for intesive reading and aggregation on the **fact tables**, and works on files with `json lines` precompiled in S3, and processed in batches.
+
+    4.1. Should **intensive writing** be a requirement, instead of databases, we could have a message/queue based system that (a) would *Write streams of files to s3* and (b) **Use Apache Spark to compile our facts**.
+
+
+### Scenario 2: The pipelines would be run on a daily basis by 7 am every day
+
+1. The **Data Warehouse Building DAG** would have to be scheduled for 00:00 every day.
+
+2. **Landing times** will be required to be setup with alerts, so that we can keep track of late deliveries.
+
+3. `COPY` and `INSERT` from the **Data Warehouse Building DAG** should be little affected, even if the data increases to 100x, because they currently run within 20 seconds, which in the worst case scenarios giving us a 6h safety window.
+
+4. However, the *Review Classification* part of the DAG, should the data increase sensibly, could take too long to finish. Parallelisation of that task will need to be taken into consideration.
+
+### Secenario 3: The database needed to be accessed by 100+ people.
+
+1. **AWS Redshift** maximum number of concurrent user defined queries is 50, [according to AWS documentation](https://docs.aws.amazon.com/redshift/latest/mgmt/amazon-redshift-limits.html) 
+
+2. However, fact tables are optimised for reading, and the queuing time for each of the 50 concurrent times should be trivial.
+
+3. Therefore, the system would easily sustain a much larger number of users (100+) with great level of fault tolerance.
