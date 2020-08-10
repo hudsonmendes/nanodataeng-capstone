@@ -31,6 +31,69 @@ Our data sources are:
 
 Please refer to the [Movie Review Sentiment Analysis Notebook](Movie%20Review%20Sentiment%20Analysis.ipynb#) for end-to-end understanding of the project, as well as setup instructions.
 
+## Schema
+
+### Star Schema: Review Sentiments by Film
+
+![Star Schema: Film Review Sentiments](images/star-film-review-sentiment.png 'Star Schema: Film Review Sentiments')
+
+### Star Schema: Film Review Sentiments by Cast
+
+![Star Schema: Cast Review Sentiments](images/star-cast-film-review-sentiment.png 'Star Schema: Cast Review Sentiments')
+
+## Data Dictionary
+
+### `fact_films_review_sentiments`
+
+| Attribute                	| Type          	| Nullable   	| Value                                                             	|
+|--------------------------	|---------------	|------------	|-------------------------------------------------------------------	|
+| `date_id`                	| `timestamp`      	| `not null` 	| yyyy-mm-dd, foreign key to `dim_dates`                            	|
+| `film_id`                	| `int`         	| `not null` 	| foreign key to `dim_films`                                        	|
+| `review_id`              	| `int`         	| `not null` 	| foreign key to `dim_reviews`                                      	|
+| `review_sentiment_class` 	| `short`       	| `null`     	| [-1, 1] value representing the sentiment, classified by our model 	|
+
+### `fact_cast_review_sentiments`
+
+| Attribute                	| Type          	| Nullable   	| Value                                                             	|
+|--------------------------	|---------------	|------------	|-------------------------------------------------------------------	|
+| `date_id`                	| `timestamp`      	| `not null` 	| yyyy-mm-dd, foreign key to `dim_dates`                            	|
+| `cast_id`             	| `int`         	| `not null` 	| foreign key to `dim_cast`                                   	        |
+| `review_id`              	| `int`         	| `not null` 	| foreign key to `dim_reviews`                                      	|
+| `review_sentiment_class` 	| `short`       	| `null`     	| [-1, 1] value representing the sentiment, classified by our model 	|
+
+### `dim_dates`
+
+| Attribute                	| Type          	| Nullable   	| Value                             	|
+|--------------------------	|---------------	|------------	|-----------------------------------	|
+| `date_id`                	| `timestamp`      	| `not null` 	| primary key                       	|
+| `year`                	| `int`         	| `not null` 	| `year` of timestamp in int format 	|
+| `month`             		| `int`         	| `not null` 	| `month` of timestamp in int format	|
+| `day`              		| `int`         	| `not null` 	| `day` of timestamp in int format  	|
+
+### `dim_films`
+
+| Attribute                	| Type          	| Nullable   	| Value                             	|
+|--------------------------	|---------------	|------------	|-----------------------------------	|
+| `film_id`                	| `varchar(32)` 	| `not null` 	| `idmb_id`                           	|
+| `title`                	| `varchar(256)` 	| `not null` 	| the original title of the film    	|
+| `release_year`         	| `int`         	| `not null` 	| `year` in which the film was released	|
+
+### `dim_cast`
+
+| Attribute                	| Type          	| Nullable   	| Value                             	|
+|--------------------------	|---------------	|------------	|-----------------------------------	|
+| `cast_id`                	| `varchar(32)` 	| `not null` 	| `cast_id` in the IMDB database    	|
+| `film_id`                	| `varchar(32)` 	| `not null` 	| `imdb_id`                         	|
+| `full_name`            	| `varchar(256)` 	| `not null` 	| the name of the actor or actress   	|
+
+### `dim_reviews`
+
+| Attribute                	| Type          	| Nullable   	| Value                             		|
+|--------------------------	|---------------	|------------	|---------------------------------------	|
+| `review_id`            	| `varchar(32)` 	| `not null` 	| `review_id` in the TMDb database  		|
+| `film_id`                	| `varchar(32)` 	| `not null` 	| `imdb_id`                         		|
+| `text`                	| `varchar(32)` 	| `not null` 	| review text for sentiment classification  |
+
 ## Choice of Technology
 
 The present solution allows **Data Analysts** to perform roll-ups and drill-downs into film review sentiment facts linked to both films and actors.
