@@ -98,7 +98,7 @@ Please refer to the [Movie Review Sentiment Analysis Notebook](Movie%20Review%20
 
 The present solution allows **Data Analysts** to perform roll-ups and drill-downs into film review sentiment facts linked to both films and actors.
 
-Since the raw data provided into S3 and **yearly reported to the Data Analysis Team** who can then perform further analysis on the database, a single write step is required, whereas many reads and aggregations will be performer.
+Since the raw data provided into S3 and **reported on demand to the Data Analysis Team** who can then perform further analysis on the database, a single write step is required, whereas many reads and aggregations will be performer.
 
 Given those requirements, the choice of technology was the following:
 
@@ -108,7 +108,7 @@ Given those requirements, the choice of technology was the following:
 
 3. **Tensorflow** to allow us training a model and running the classification
 
-4. **Apache Airflow** to automate our Data Piepeline, so that it arrives to the right team, on time.
+4. **Apache Airflow** to automate our Data Piepeline.
 
 ## Scalability
 

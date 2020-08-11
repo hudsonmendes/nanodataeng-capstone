@@ -10,6 +10,7 @@ from s3_download_and_upload_operator import S3DownloadAndUploadOperator
 from s3_to_redshift_operator import S3ToRedshiftOperator
 from tensorflow_postgres_model_classification_operator import TensorflowPostgresModelClassificationOperator
 from s3_pdf_sentiment_report_operator import S3PdfSentimentReportOperator
+from check_no_missing_id_operator import CheckNoMissingIdOperator
 
 default_args = {
     'owner': 'hudsonmendes',
@@ -284,7 +285,31 @@ classify_sentiment_redshift_fact_cast_operator = TensorflowPostgresModelClassifi
 
 # ========================================================================
 
-# STEP 6: UPLOAD REPORT ==================================================
+# STEP 6: QUALITY CHECKS =================================================
+
+quality_check_no_missing_reviews_in_films_fact_operator = CheckNoMissingIdOperator(
+    task_id='quality_check_no_missing_reviews_in_films_fact',
+    reference_conn_id='redshift_dw',
+    reference_db=Variable.get('redshift_db'),
+    reference_ids_sql="SELECT DISTINCT(review_id) FROM dim_reviews",
+    checking_conn_id='redshift_dw',
+    checking_db=Variable.get('redshift_db'),
+    checking_ids_sql="SELECT DISTINCT(review_id) FROM fact_film_review_sentiments",
+    dag=dag)
+
+quality_check_no_missing_cast_in_fact_operator = CheckNoMissingIdOperator(
+    task_id='quality_check_no_missing_cast_in_fact',
+    reference_conn_id='redshift_dw',
+    reference_db=Variable.get('redshift_db'),
+    reference_ids_sql="SELECT dc.cast_id FROM dim_cast as dc INNER JOIN dim_reviews AS dr ON dc.film_id = dr.film_id",
+    checking_conn_id='redshift_dw',
+    checking_db=Variable.get('redshift_db'),
+    checking_ids_sql="SELECT f.cast_id FROM fact_cast_review_sentiments AS f",
+    dag=dag)
+
+# ========================================================================
+
+# STEP 7: UPLOAD REPORT ==================================================
 
 produce_sentiment_report_pdf_operator = S3PdfSentimentReportOperator(
     task_id='produce_sentiment_report_pdf',
@@ -351,6 +376,10 @@ insert_cast_names_to_redshift_dim_operator      >> preload_redshift_fact_cast_op
 preload_redshift_fact_films_operator            >> classify_sentiment_redshift_fact_films_operator
 preload_redshift_fact_cast_operator             >> classify_sentiment_redshift_fact_cast_operator
 
-classify_sentiment_redshift_fact_films_operator >> produce_sentiment_report_pdf_operator
-classify_sentiment_redshift_fact_cast_operator  >> produce_sentiment_report_pdf_operator
-produce_sentiment_report_pdf_operator           >> end_operator
+classify_sentiment_redshift_fact_films_operator >> quality_check_no_missing_reviews_in_films_fact_operator
+classify_sentiment_redshift_fact_cast_operator  >> quality_check_no_missing_cast_in_fact_operator
+
+quality_check_no_missing_reviews_in_films_fact_operator >> produce_sentiment_report_pdf_operator
+quality_check_no_missing_cast_in_fact_operator          >> produce_sentiment_report_pdf_operator
+
+produce_sentiment_report_pdf_operator >> end_operator
